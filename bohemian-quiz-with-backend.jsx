@@ -3,6 +3,9 @@ import { useState } from "react";
 // ── CONFIGURE THIS to your backend URL ──
 const API_URL = "http://localhost:3000";
 
+// ── CONFIGURE THIS to your Anthropic API key ──
+const ANTHROPIC_API_KEY = "";
+
 const questions = [
   {
     id: 1,
@@ -130,9 +133,14 @@ export default function BohemianQuiz() {
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-request-header": "true",
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1000,
           messages: [
             {
@@ -152,6 +160,10 @@ EXPLANATION: (your explanation here addressing ${name || "them"} by name)`,
           ],
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.status}`);
+      }
 
       const data = await response.json();
       const text = data.content?.map((c) => c.text || "").join("") || "";
@@ -180,11 +192,14 @@ EXPLANATION: (your explanation here addressing ${name || "them"} by name)`,
         })),
       };
 
-      await fetch(`${API_URL}/api/submit`, {
+      const saveResponse = await fetch(`${API_URL}/api/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!saveResponse.ok) {
+        console.error("Backend save failed:", saveResponse.status, await saveResponse.text());
+      }
     } catch (err) {
       console.error("Backend save error:", err);
       // Quiz still works even if backend is down
